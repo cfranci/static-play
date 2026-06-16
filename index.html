@@ -593,6 +593,7 @@ body.no-watch .sw-hang{ display:none; }   /* hide on pages that have buttons in 
 .vp-sw.active{ transform:scale(1.16); }
 .vp-sw.active::after{ content:''; position:absolute; inset:-5px; border-radius:50%; border:2px solid var(--a); }
 @media(max-width:600px){ .vibe-picker{ bottom:14px; left:14px; padding:8px 12px; gap:8px; } .vp-label{ display:none; } }
+.theme-wipe{ position:fixed; inset:0; z-index:8800; display:none; pointer-events:none; will-change:clip-path; }
 </style>
 </head>
 <body data-theme="bubblegum">
@@ -1080,16 +1081,43 @@ body.no-watch .sw-hang{ display:none; }   /* hide on pages that have buttons in 
 <script>
 (function(){
   var picker=document.getElementById('vibePicker'); if(!picker) return;
-  var sws=picker.querySelectorAll('.vp-sw');
-  var saved=null; try{ saved=localStorage.getItem('sp-vibe'); }catch(e){}
-  function setVibe(v){
-    document.body.setAttribute('data-theme', v);
-    for(var i=0;i<sws.length;i++){ sws[i].classList.toggle('active', sws[i].getAttribute('data-set')===v); }
-    try{ localStorage.setItem('sp-vibe', v); }catch(e){}
+  var sws=Array.prototype.slice.call(picker.querySelectorAll('.vp-sw'));
+  var order=['bubblegum','peach','lavender','mint','retro'];
+  var COLORS={bubblegum:['#ffe6f0','#ff4f8b'],peach:['#ffeede','#ff6f61'],lavender:['#f1e9ff','#b06ab3'],mint:['#e7f8f0','#ff6fae'],retro:['#f1e3c6','#d8362a']};
+  var WIPES=[{d:1,s:'straight'},{d:1,s:'angled'},{d:-1,s:'wave'},{d:1,s:'wave2'},{d:-1,s:'angled'},{d:-1,s:'wave'}];
+  var RM=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  var wipe=document.createElement('div'); wipe.className='theme-wipe'; document.body.appendChild(wipe);
+  var current=null, wi=0, timer=null, busy=false;
+  function markActive(v){ for(var i=0;i<sws.length;i++) sws[i].classList.toggle('active', sws[i].getAttribute('data-set')===v); }
+  function apply(v){ document.body.setAttribute('data-theme',v); markActive(v); current=v; try{localStorage.setItem('sp-vibe',v);}catch(e){} }
+  function ease(t){ return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2; }
+  function clip(p,sh,d,region){
+    var N=24,amp=sh==='angled'?22:(sh==='wave'?9:(sh==='wave2'?7:0)),i,y,off,x,pts=[];
+    for(i=0;i<=N;i++){ y=i/N*100;
+      off = sh==='angled'?(y/100-.5)*amp : sh==='wave'?Math.sin(y/100*Math.PI*2)*amp : sh==='wave2'?Math.sin(y/100*Math.PI*1.5)*amp : 0;
+      x=(d===1?p:100-p)+off; pts.push(x); }
+    var o=[], edge=region==='left'?'-8%':'108%';
+    o.push(edge+' 0%'); for(i=0;i<=N;i++) o.push(pts[i].toFixed(1)+'% '+(i/N*100).toFixed(1)+'%'); o.push(edge+' 100%');
+    return 'polygon('+o.join(', ')+')';
   }
-  for(var i=0;i<sws.length;i++){ (function(b){ b.addEventListener('click', function(){ setVibe(b.getAttribute('data-set')); }); })(sws[i]); }
-  setVibe(saved || 'bubblegum');
-})();
+  function go(v,w){
+    if(busy||v===current) return;
+    if(RM){ apply(v); return; }
+    busy=true;
+    var c=COLORS[v]; wipe.style.background='linear-gradient(125deg,'+c[0]+' 0%,'+c[1]+' 58%,'+c[0]+' 100%)'; wipe.style.display='block';
+    var cover=w.d===1?'left':'right', uncov=w.d===1?'right':'left', D=820, t0=null;
+    function cf(ts){ if(t0===null)t0=ts; var t=Math.min((ts-t0)/D,1); wipe.style.clipPath=clip(ease(t)*100,w.s,w.d,cover);
+      if(t<1) requestAnimationFrame(cf);
+      else { apply(v); var u0=null; requestAnimationFrame(function uf(ts2){ if(u0===null)u0=ts2; var tt=Math.min((ts2-u0)/D,1); wipe.style.clipPath=clip(ease(tt)*100,w.s,w.d,uncov); if(tt<1) requestAnimationFrame(uf); else { wipe.style.display='none'; busy=false; } }); }
+    }
+    requestAnimationFrame(cf);
+  }
+  function schedule(){ clearTimeout(timer); timer=setTimeout(function(){ var n=order[(order.indexOf(current)+1)%order.length]; go(n, WIPES[wi++%WIPES.length]); schedule(); }, 15000); }
+  for(var i=0;i<sws.length;i++){ (function(b){ b.addEventListener('click', function(){ busy=false; wipe.style.display='none'; apply(b.getAttribute('data-set')); schedule(); }); })(sws[i]); }
+  var saved=null; try{saved=localStorage.getItem('sp-vibe');}catch(e){}
+  apply(saved||'bubblegum');
+  schedule();
+})()
 </script>
 </body>
 </html>
