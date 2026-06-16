@@ -548,6 +548,7 @@ body.pitch .pitch-only{ display:flex !important; }
   font-size:.55rem; letter-spacing:.1em; text-transform:uppercase; padding:3px 8px; border-radius:999px; }
 .modal .microcopy{ text-align:center; font-family:'Space Mono',monospace; font-size:.66rem; letter-spacing:.04em; color:var(--ink-faint); margin:10px 0 14px; }
 
+@font-face{ font-family:'DSEG7'; src:url('https://cdn.jsdelivr.net/npm/dseg@0.46.0/fonts/DSEG7-Classic/DSEG7Classic-Bold.woff2') format('woff2'); font-display:swap; }
 /* ---------- HANGING STOPWATCH COUNTDOWN (centered under logo, swings on scroll) ---------- */
 .sw-hang{ position:fixed; top:46px; left:37px; width:118px; z-index:5900; transform-origin:top center;
   pointer-events:none; will-change:transform; }
@@ -566,9 +567,10 @@ body.no-watch .sw-hang{ display:none; }   /* hide on pages that have buttons in 
   background:radial-gradient(circle at 50% 36%, #fffdf5, #efe2c8);
   box-shadow:inset 0 2px 7px rgba(44,32,20,.22);
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; }
-.sw-label{ font-family:'Space Mono',monospace; font-size:.5rem; letter-spacing:.14em; color:var(--red-deep); margin-top:11px; }
-.sw-time{ font-family:'Space Mono',monospace; font-weight:700; font-size:.76rem; letter-spacing:.01em; color:var(--ink); white-space:nowrap; z-index:2; }
-.sw-sub{ font-family:'Space Mono',monospace; font-size:.46rem; letter-spacing:.12em; color:var(--ink-faint); }
+.sw-label{ font-family:'Space Mono',monospace; font-size:.44rem; letter-spacing:.2em; color:var(--red-deep); margin-top:9px; }
+.sw-days{ font-family:'DSEG7','Space Mono',monospace; font-weight:700; font-size:1.55rem; line-height:.88; color:var(--stamp); z-index:2;
+  text-shadow:0 0 8px color-mix(in srgb, var(--stamp) 70%, transparent), 0 1px 0 rgba(44,32,20,.18); }
+.sw-clock{ font-family:'DSEG7','Space Mono',monospace; font-size:.56rem; letter-spacing:.01em; color:var(--ink-soft); margin-top:4px; z-index:2; }
 .sw-hand{ position:absolute; left:50%; top:50%; width:1.5px; height:40px; background:var(--red); border-radius:2px;
   transform-origin:bottom center; transform:translate(-50%,-100%) rotate(0deg); animation:sweep 60s linear infinite; }
 .sw-hand::after{ content:''; position:absolute; left:50%; bottom:-3px; width:6px; height:6px; transform:translateX(-50%); background:var(--red); border-radius:50%; }
@@ -577,13 +579,14 @@ body.no-watch .sw-hang{ display:none; }   /* hide on pages that have buttons in 
   background:linear-gradient(135deg, rgba(255,255,255,.55) 0 16%, transparent 38%); }
 /* small screens: collapse to a barely-there countdown chip, bottom-right */
 @media(max-width:760px){
-  .sw-hang{ top:auto; bottom:10px; left:auto; right:10px; width:auto; transform:none !important; opacity:.72; }
-  .sw-string,.sw-ring,.sw-crown,.sw-hand,.sw-glare,.sw-label,.sw-sub{ display:none; }
+  .sw-hang{ top:auto; bottom:10px; left:auto; right:10px; width:auto; transform:none !important; opacity:.78; }
+  .sw-string,.sw-ring,.sw-crown,.sw-hand,.sw-glare,.sw-label{ display:none; }
   .stopwatch{ width:auto; }
-  .sw-body{ width:auto; height:auto; border-radius:999px; padding:5px 11px; display:flex;
-    background:rgba(28,20,12,.78); box-shadow:0 8px 20px -8px rgba(0,0,0,.5); }
-  .sw-face{ width:auto; height:auto; background:none; box-shadow:none; gap:0; overflow:visible; }
-  .sw-time{ font-size:.6rem; color:var(--stamp); text-shadow:0 0 6px rgba(255,126,28,.5); }
+  .sw-body{ width:auto; height:auto; border-radius:999px; padding:6px 12px; display:flex; align-items:baseline; gap:6px;
+    background:rgba(28,20,12,.8); box-shadow:0 8px 20px -8px rgba(0,0,0,.5); }
+  .sw-face{ width:auto; height:auto; background:none; box-shadow:none; overflow:visible; flex-direction:row; align-items:baseline; gap:6px; }
+  .sw-days{ font-size:.74rem; text-shadow:none; }
+  .sw-clock{ font-size:.56rem; margin-top:0; color:var(--stamp); }
 }
 @media (prefers-reduced-motion:reduce){ .sw-hand{ animation:none; } }
 
@@ -949,8 +952,8 @@ body.no-watch .sw-hang{ display:none; }   /* hide on pages that have buttons in 
     <div class="sw-body">
       <div class="sw-face">
         <span class="sw-label">FIELD DAY</span>
-        <span class="sw-time" id="cdTime">--d --:--:--</span>
-        <span class="sw-sub">JUL 12</span>
+        <span class="sw-days" id="cdDays">--</span>
+        <span class="sw-clock" id="cdClock">--:--:--</span>
         <div class="sw-hand"></div>
       </div>
       <div class="sw-glare"></div>
@@ -961,18 +964,18 @@ body.no-watch .sw-hang{ display:none; }   /* hide on pages that have buttons in 
 <script>
 (function(){
   // ----- countdown to Sun Jul 12 2026, 10:00 local -----
-  const el = document.getElementById('cdTime');
-  if(el){
+  const dEl = document.getElementById('cdDays'), cEl = document.getElementById('cdClock');
+  if(dEl && cEl){
     const target = new Date(2026, 6, 12, 10, 0, 0).getTime();
     const p = n => String(n).padStart(2,'0');
     (function tick(){
       let diff = target - Date.now();
-      if(diff <= 0){ el.textContent = 'NOW!'; el.style.color = 'var(--red)'; return; }
+      if(diff <= 0){ dEl.textContent='00'; cEl.textContent='00:00:00'; return; }
       const d = Math.floor(diff/86400000); diff -= d*86400000;
       const h = Math.floor(diff/3600000);  diff -= h*3600000;
       const m = Math.floor(diff/60000);     diff -= m*60000;
       const s = Math.floor(diff/1000);
-      el.textContent = d + 'd ' + p(h) + ':' + p(m) + ':' + p(s);
+      dEl.textContent = p(d); cEl.textContent = p(h)+':'+p(m)+':'+p(s);
       setTimeout(tick, 1000);
     })();
   }
